@@ -33,9 +33,9 @@ def train_debug(
     fold: int = typer.Option(0, help="Fold number to use if using splits.json")
 ):
     """
-    Run a CPU-only, single-process debug training loop.
+    Run a CPU/MPS-only, single-process debug training loop.
     """
-    print("🔍 Starting debug training on CPU")
+    print("🔍 Starting debug training on Apple Metal MPS or CPU")
     tokenizer = AutoTokenizer.from_pretrained(esm_model)
 
     # Load + preprocess data
@@ -63,17 +63,40 @@ def train_debug(
     loss_fn = get_loss_func(task_type)
     train_count = train_ds.count()
     total_steps = int(num_epochs * np.ceil(train_count / batch_size))
-    score_name = None if task_type == "regression" else "multilabel_f1_score"
-    lightning_model = ESMLightningModule(model,total_steps,learning_rate=learning_rate,loss_fn=loss_fn,task_type=task_type)
+
+    # Score name logic
+    if task_type == "regression":
+        score_name = None
+    elif task_type == "classification_binary":
+        score_name = "binary_f1_score"
+    elif task_type == "classification_multiclass":
+        score_name = "multiclass_f1_score"
+    elif task_type == "classification_multilabel":
+        score_name = "multilabel_f1_score"
+    else:
+        raise ValueError(f"Unsupported task type: {task_type}")
+
+    lightning_model = ESMLightningModule(
+        model,
+        total_steps=total_steps,
+        learning_rate=learning_rate,
+        loss_fn=loss_fn,
+        task_type=task_type
+    )
 
     # Callbacks
     callbacks = []
     if score_name:
-        callbacks.append(ModelCheckpoint(save_top_k=1, monitor="val_f1_score", mode="max"))
+        callbacks.append(ModelCheckpoint(
+            save_top_k=1,
+            monitor="val_f1_score",  # This should match what's logged in validation_step
+            mode="max",
+            filename=f"{score_name}" + "-{epoch:02d}-{val_loss:.2f}"
+        ))
 
     trainer = pl.Trainer(
         max_epochs=num_epochs,
-        accelerator="auto",
+        accelerator="auto",  # Use MPS if available on Mac, else CPU
         callbacks=callbacks,
         log_every_n_steps=1,
     )
