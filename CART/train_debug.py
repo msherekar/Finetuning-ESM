@@ -9,8 +9,10 @@ import functools
 import json
 
 from .models import FinetuneESM, ESMLightningModule
-from .dummy_data import load_data, CustomPreprocessor
+from .data import load_data, CustomPreprocessor
 from .utils import collate_fn, get_loss_func
+from .dummy_data import *
+
 
 app = typer.Typer()
 
