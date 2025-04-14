@@ -1,15 +1,16 @@
 import torch
 import torch.nn as nn
 import typer
-import lightning.pytorch as pl
+import pytorch_lightning as pl
 import numpy as np
 from transformers import AutoTokenizer
-from lightning.pytorch.callbacks import ModelCheckpoint
-from models import FinetuneESM, ESMLightningModule
-from CART.dummy_data import load_data, CustomPreprocessor
-from utils import collate_fn, get_loss_func
+from pytorch_lightning.callbacks import ModelCheckpoint
 import functools
 import json
+
+from .models import FinetuneESM, ESMLightningModule
+from .dummy_data import load_data, CustomPreprocessor
+from .utils import collate_fn, get_loss_func
 
 app = typer.Typer()
 

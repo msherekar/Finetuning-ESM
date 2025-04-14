@@ -13,10 +13,11 @@ dependencies:
   - scikit-learn
   - transformers
   - lightning
-  - ray
+  
   - typer
   - mlflow
   - torchmetrics
   - pip
   - pip:
     - sentencepiece  
+    - ray

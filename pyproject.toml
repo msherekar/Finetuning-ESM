@@ -1,6 +1,6 @@
 [project]
 name = "protein-finetuning-pipeline"
-version = "0.1.0"
+version = "v1.1"
 description = "General-purpose protein finetuning pipeline with support for regression, classification, and LoRA."
 authors = [{ name = Mukul Sherekar, email = "mukulsherekar@gmail.com" }]
 requires-python = ">=3.9"

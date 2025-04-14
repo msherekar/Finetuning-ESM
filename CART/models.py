@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import lightning.pytorch as pl
+import pytorch_lightning as pl
 from typing import Optional
 from transformers import EsmModel
 from torchmetrics.functional.classification import (
