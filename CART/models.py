@@ -6,7 +6,7 @@ from transformers import EsmModel
 from torchmetrics.functional.classification import (
     multilabel_f1_score,
     binary_f1_score,
-    multiclass_f1_score,
+    multiclass_f1_score
 )
 
 
@@ -54,7 +54,10 @@ class ESMLightningModule(pl.LightningModule):
         self.learning_rate = learning_rate
         self.total_steps = total_steps
         self.task_type = task_type
-        
+
+        # Optional: Save hyperparameters to checkpoint
+        self.save_hyperparameters(ignore=["model", "loss_fn"])
+
 
     def forward(self, batch: dict[str, torch.Tensor]) -> torch.Tensor:
         return self.model(batch)
@@ -62,7 +65,7 @@ class ESMLightningModule(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         logits = self(batch)
         loss = self.loss_fn(logits, batch["targets"])
-        self.log("train_loss", loss)
+        self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -74,13 +77,22 @@ class ESMLightningModule(pl.LightningModule):
         targets = batch["targets"]
 
         if self.task_type == "classification_multiclass":
-            score = multiclass_f1_score(preds.softmax(dim=-1), targets.long(), num_classes=self.model.num_classes)
-            self.log("val_f1_score", score, prog_bar=True)
+            score = multiclass_f1_score(
+                preds.softmax(dim=-1), targets.long(),
+                num_classes=self.model.num_classes
+            )
         elif self.task_type == "classification_binary":
-            score = binary_f1_score(preds.sigmoid(), targets.int())
-            self.log("val_f1_score", score, prog_bar=True)
+            score = binary_f1_score(
+                preds.sigmoid(), targets.int()
+            )
         elif self.task_type == "classification_multilabel":
-            score = multilabel_f1_score(preds, targets.int(), num_labels=self.model.num_classes)
+            score = multilabel_f1_score(
+                preds.sigmoid(), targets.int(), num_labels=self.model.num_classes
+            )
+        else:
+            score = None  # Regression – no F1
+
+        if score is not None:
             self.log("val_f1_score", score, prog_bar=True)
 
     def configure_optimizers(self):
@@ -90,5 +102,8 @@ class ESMLightningModule(pl.LightningModule):
         )
         return {
             "optimizer": optimizer,
-            "lr_scheduler": {"scheduler": scheduler, "interval": "step"}
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "step"
+            }
         }
