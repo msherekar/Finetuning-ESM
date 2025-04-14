@@ -61,17 +61,10 @@ def train_debug(
     # Model setup
     model = FinetuneESM(esm_model, dropout_p=dropout_p, num_classes=num_classes)
     loss_fn = get_loss_func(task_type)
-    total_steps = int(num_epochs * np.ceil(len(train_ds) / batch_size))
-
+    train_count = train_ds.count()
+    total_steps = int(num_epochs * np.ceil(train_count / batch_size))
     score_name = None if task_type == "regression" else "multilabel_f1_score"
-    lightning_model = ESMLightningModule(
-        model,
-        total_steps,
-        learning_rate=learning_rate,
-        loss_fn=loss_fn,
-        score_name=score_name,
-        task_type=task_type,
-    )
+    lightning_model = ESMLightningModule(model,total_steps,learning_rate=learning_rate,loss_fn=loss_fn,task_type=task_type)
 
     # Callbacks
     callbacks = []
@@ -80,7 +73,7 @@ def train_debug(
 
     trainer = pl.Trainer(
         max_epochs=num_epochs,
-        accelerator="cpu",
+        accelerator="auto",
         callbacks=callbacks,
         log_every_n_steps=1,
     )
