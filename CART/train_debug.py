@@ -7,6 +7,8 @@ from transformers import AutoTokenizer
 from pytorch_lightning.callbacks import ModelCheckpoint
 import functools
 import json
+from pytorch_lightning.loggers import MLFlowLogger
+
 
 from .models import FinetuneESM, ESMLightningModule
 from .data import load_data, CustomPreprocessor
@@ -94,11 +96,19 @@ def train_debug(
             filename=f"{score_name}" + "-{epoch:02d}-{val_loss:.2f}"
         ))
 
+    
+    # MLFlow logger
+    mlflow_logger = MLFlowLogger(   
+        experiment_name="esm_finetune",   # any name you like
+        tracking_uri="file:./mlruns"      # logs saved locally
+    )
+
     trainer = pl.Trainer(
         max_epochs=num_epochs,
         accelerator="auto",  # Use MPS if available on Mac, else CPU
         callbacks=callbacks,
         log_every_n_steps=1,
+        logger=mlflow_logger
     )
 
     trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
