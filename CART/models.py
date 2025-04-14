@@ -54,6 +54,7 @@ class ESMLightningModule(pl.LightningModule):
         self.learning_rate = learning_rate
         self.total_steps = total_steps
         self.task_type = task_type
+        
 
     def forward(self, batch: dict[str, torch.Tensor]) -> torch.Tensor:
         return self.model(batch)
