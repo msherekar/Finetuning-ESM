@@ -46,6 +46,7 @@ def train_model(
     use_cpu_cores: Annotated[bool, typer.Option()] = False,
     benchmark: Annotated[bool, typer.Option(help="Run a quick benchmark of different training modes")] = False,
     verbose: Annotated[bool, typer.Option()] = True,
+    class_labels: Annotated[Optional[str], typer.Option(help="Comma-separated class labels for visualization (e.g. 'healthy,diseased')")] = None,
 ):
     """
     Train an ESM model for protein sequence tasks.
@@ -156,7 +157,8 @@ def train_model(
                 total_steps=int(config["epochs"] * np.ceil(num_train_samples / batch_size)),
                 learning_rate=learning_rate,
                 loss_fn=get_loss_func(task_type),
-                task_type=task_type
+                task_type=task_type,
+                class_labels=parsed_class_labels
             )
             
             # Use a small subset of data for benchmarking
@@ -244,12 +246,24 @@ def train_model(
     else:
         raise ValueError(f"Unsupported task type: {task_type}")
 
+    # Parse class labels if provided
+    parsed_class_labels = None
+    if class_labels:
+        parsed_class_labels = class_labels.split(',')
+        if task_type == "classification_binary" and len(parsed_class_labels) != 2:
+            logger.warning(f"Binary classification requires exactly 2 class labels, got {len(parsed_class_labels)}. Using default labels.")
+            parsed_class_labels = None
+        elif task_type == "classification_multiclass" and len(parsed_class_labels) != num_classes:
+            logger.warning(f"Multiclass classification with {num_classes} classes requires exactly {num_classes} labels, got {len(parsed_class_labels)}. Using default labels.")
+            parsed_class_labels = None
+
     lightning_model = ESMLightningModule(
         model,
         total_steps,
         learning_rate=learning_rate,
         loss_fn=loss_fn,
-        task_type=task_type
+        task_type=task_type,
+        class_labels=parsed_class_labels
     )
 
     callbacks = []
@@ -271,7 +285,8 @@ def train_model(
 
     mlflow_logger = MLFlowLogger(
         experiment_name=experiment_name,
-        tracking_uri=MLFLOW_TRACKING_URI
+        tracking_uri="http://localhost:5000"
+        # tracking_uri=MLFLOW_TRACKING_URI for local
     )
     
     # Trainer setup
@@ -299,6 +314,11 @@ def train_model(
         )
 
     start = time.time()
+    
+    # Verify MPS/GPU usage
+    print(f"🖥️ Hardware acceleration: {'MPS' if torch.backends.mps.is_available() else 'CPU'} is being used")
+    print(f"🖥️ Device for model: {next(lightning_model.parameters()).device}")
+    
     trainer.fit(lightning_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
     end = time.time()
 
