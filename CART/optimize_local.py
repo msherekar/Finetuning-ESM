@@ -141,7 +141,7 @@ def train_model(
                 max_epochs=config["epochs"],
                 accelerator="mps" if not config["cpu_cores"] else "cpu",
                 devices=1 if not config["cpu_cores"] else "auto",
-                strategy="auto" if not config["cpu_cores"] else "ddp_spawn",
+                strategy="auto",  # Use single-process strategy to avoid pickling issues
                 callbacks=test_callbacks,
                 logger=False,
                 enable_progress_bar=True,
@@ -280,7 +280,7 @@ def train_model(
             max_epochs=num_epochs,
             accelerator="cpu",
             devices="auto",  # Use all available CPU cores
-            strategy="ddp_spawn",  # Better for Mac's multiprocessing
+            strategy="auto",  # Use default strategy to avoid pickling issues with Ray datasets
             precision="16-mixed",  # Use mixed precision for faster training
             callbacks=callbacks,
             log_every_n_steps=1,
