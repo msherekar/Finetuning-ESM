@@ -7,6 +7,7 @@ import json
 import functools
 import datetime
 import numpy as np
+import ray
 
 from typing import Optional
 from typing_extensions import Annotated
@@ -70,8 +71,9 @@ def train_model(
     if splits_json:
         with open(splits_json) as f:
             split = json.load(f)[fold]
-        train_ds = ds.take(split["train_idx"])
-        val_ds = ds.take(split["val_idx"])
+        # take() returns a list, so we need to convert back to Ray dataset
+        train_ds = ray.data.from_items(ds.take(split["train_idx"]))
+        val_ds = ray.data.from_items(ds.take(split["val_idx"]))
     else:
         train_ds, val_ds = ds.train_test_split(val_size)
 
@@ -84,8 +86,8 @@ def train_model(
     tokenizer = AutoTokenizer.from_pretrained(esm_model)
     
     collate_fn_partial = functools.partial(collate_fn, tokenizer=tokenizer, task_type=task_type)
-    train_loader = train_ds.iter_torch_batches(batch_size=batch_size, collate_fn=collate_fn_partial, num_workers=4)
-    val_loader = val_ds.iter_torch_batches(batch_size=batch_size, collate_fn=collate_fn_partial, num_workers=4)
+    train_loader = train_ds.iter_torch_batches(batch_size=batch_size, collate_fn=collate_fn_partial)
+    val_loader = val_ds.iter_torch_batches(batch_size=batch_size, collate_fn=collate_fn_partial)
 
     # Get a sample batch to estimate optimal batch size
     if batch_size is None:
@@ -104,8 +106,8 @@ def train_model(
         batch_size = find_optimal_batch_size(model, sample_batch)
         print(f"🔍 Auto-determined optimal batch size: {batch_size}")
         # Recreate dataloaders with optimal batch size
-        train_loader = train_ds.iter_torch_batches(batch_size=batch_size, collate_fn=collate_fn_partial, num_workers=4)
-        val_loader = val_ds.iter_torch_batches(batch_size=batch_size, collate_fn=collate_fn_partial, num_workers=4)
+        train_loader = train_ds.iter_torch_batches(batch_size=batch_size, collate_fn=collate_fn_partial)
+        val_loader = val_ds.iter_torch_batches(batch_size=batch_size, collate_fn=collate_fn_partial)
 
     # If benchmarking, test different configurations to find the fastest
     if benchmark:
@@ -158,17 +160,22 @@ def train_model(
             )
             
             # Use a small subset of data for benchmarking
-            benchmark_train = train_ds.take(min(100, num_train_samples))
-            benchmark_val = val_ds.take(min(20, val_ds.count()))
+            # take() returns a list, so we need to convert back to a dataset
+            benchmark_size = min(5000, num_train_samples)
+            val_size = min(1000, val_ds.count())
+            
+            # Instead of using take(), use a different approach to create a subset
+            # Create benchmark datasets from the sample rows
+            benchmark_train = ray.data.from_items(train_ds.take(benchmark_size))
+            benchmark_val = ray.data.from_items(val_ds.take(val_size))
+            
             benchmark_train_loader = benchmark_train.iter_torch_batches(
                 batch_size=batch_size, 
-                collate_fn=collate_fn_partial,
-                num_workers=0 if not config["cpu_cores"] else 4
+                collate_fn=collate_fn_partial
             )
             benchmark_val_loader = benchmark_val.iter_torch_batches(
                 batch_size=batch_size, 
-                collate_fn=collate_fn_partial,
-                num_workers=0 if not config["cpu_cores"] else 4
+                collate_fn=collate_fn_partial
             )
             
             test_trainer.fit(
