@@ -93,13 +93,13 @@ class ESMLightningModule(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         logits = self(batch)
         loss = self.loss_fn(logits, batch["targets"])
-        self.log("train_loss", loss, prog_bar=True)
+        self.log("train_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         logits = self(batch)
         loss = self.loss_fn(logits, batch["targets"])
-        self.log("val_loss", loss, prog_bar=True)
+        self.log("val_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
 
         preds = logits
         targets = batch["targets"]
@@ -111,9 +111,9 @@ class ESMLightningModule(pl.LightningModule):
             mae = mean_absolute_error(preds, targets)
             r2 = r2_score(preds, targets)
             
-            self.log("val_mse", mse, prog_bar=True)
-            self.log("val_mae", mae, prog_bar=True)
-            self.log("val_r2", r2, prog_bar=True)
+            self.log("val_mse", mse, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_mae", mae, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_r2", r2, prog_bar=True, on_step=False, on_epoch=True)
             
         elif self.task_type == "classification_binary":
             # Binary classification metrics
@@ -133,12 +133,12 @@ class ESMLightningModule(pl.LightningModule):
                 self.predictions = torch.cat([self.predictions, (probs > 0.5).float()])
                 self.true_labels = torch.cat([self.true_labels, targets.int()])
             
-            self.log("val_f1_score", score, prog_bar=True)
-            self.log("val_accuracy", accuracy, prog_bar=True)
-            self.log("val_auc", auc, prog_bar=True)
-            self.log("val_precision", precision, prog_bar=True)
-            self.log("val_recall", recall, prog_bar=True)
-            self.log("val_pr_auc", pr_auc, prog_bar=True)
+            self.log("val_f1_score", score, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_accuracy", accuracy, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_auc", auc, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_precision", precision, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_recall", recall, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_pr_auc", pr_auc, prog_bar=True, on_step=False, on_epoch=True)
             
         elif self.task_type == "classification_multiclass":
             # Multiclass classification metrics
@@ -182,16 +182,16 @@ class ESMLightningModule(pl.LightningModule):
             )
             
             # Log the metrics
-            self.log("val_f1_score", score, prog_bar=True)  # Macro F1
-            self.log("val_f1_micro", f1_micro, prog_bar=True)
-            self.log("val_f1_weighted", f1_weighted, prog_bar=True)
-            self.log("val_accuracy", accuracy, prog_bar=True)
-            self.log("val_cohen_kappa", kappa, prog_bar=True)
+            self.log("val_f1_score", score, prog_bar=True, on_step=False, on_epoch=True)  # Macro F1
+            self.log("val_f1_micro", f1_micro, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_f1_weighted", f1_weighted, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_accuracy", accuracy, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_cohen_kappa", kappa, prog_bar=True, on_step=False, on_epoch=True)
             
             # Log per-class metrics
             for i in range(self.model.num_classes):
-                self.log(f"val_precision_class_{i}", precision_per_class[i])
-                self.log(f"val_recall_class_{i}", recall_per_class[i])
+                self.log(f"val_precision_class_{i}", precision_per_class[i], prog_bar=True, on_step=False, on_epoch=True)
+                self.log(f"val_recall_class_{i}", recall_per_class[i], prog_bar=True, on_step=False, on_epoch=True  )
             
             # Confusion matrix is typically logged as an artifact rather than a metric
             # We'll compute and log predictions for later confusion matrix visualization
@@ -268,11 +268,11 @@ class ESMLightningModule(pl.LightningModule):
                 self.log("val_pr_auc_error", 1.0)
             
             # Log the main metrics
-            self.log("val_f1_score", f1_macro, prog_bar=True)  # Main benchmark metric
-            self.log("val_f1_micro", f1_micro, prog_bar=True)
-            self.log("val_f1_weighted", f1_weighted, prog_bar=True)
-            self.log("val_subset_accuracy", subset_accuracy, prog_bar=True)
-            self.log("val_hamming_loss", hamming_loss, prog_bar=True)
+            self.log("val_f1_score", f1_macro, prog_bar=True, on_step=False, on_epoch=True)  # Main benchmark metric
+            self.log("val_f1_micro", f1_micro, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_f1_weighted", f1_weighted, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_subset_accuracy", subset_accuracy, prog_bar=True, on_step=False, on_epoch=True)
+            self.log("val_hamming_loss", hamming_loss, prog_bar=True, on_step=False, on_epoch=True)
 
     def on_validation_epoch_end(self):
         # Create and log confusion matrix at the end of validation
